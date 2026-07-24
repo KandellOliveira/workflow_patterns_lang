@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 from workflow_patterns_lang.engine import run_dynamic_workflow, run_workflow_suite, generate_analysis_report
+from workflow_patterns_lang.tui import run_harness_ui
 
 AVAILABLE_PATTERNS = ["all", "sequential", "fanout", "routing", "human", "parallel", "branching"]
 AVAILABLE_MODELS = ["pla", "sub", "verify", "eval", "synth"]
@@ -27,10 +28,14 @@ def build_parser() -> argparse.ArgumentParser:
     dynamic_parser.add_argument("--prompt", required=True)
     dynamic_parser.add_argument("--model", default="openrouter/anthropic/claude-3.5-sonnet")
     dynamic_parser.add_argument("--api-key", default=None)
+    dynamic_parser.add_argument("--config", default=".env.models", help="Arquivo com os modelos por etapa")
     dynamic_parser.add_argument("--output", type=Path, default=None)
 
     shell_parser = subparsers.add_parser("shell", help="Abre um terminal interativo com comandos e modelos")
     shell_parser.add_argument("--prompt", default="workflow>")
+
+    screen_parser = subparsers.add_parser("screen", help="Abre a tela estilo harness para executar missoes")
+    screen_parser.add_argument("--session", default="hawk-dynamic")
     return parser
 
 
@@ -128,7 +133,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
 
     if args.command == "dynamic":
-        payload = run_dynamic_workflow(prompt=args.prompt, model=args.model, api_key=args.api_key)
+        payload = run_dynamic_workflow(
+            prompt=args.prompt,
+            model=args.model,
+            api_key=args.api_key,
+            config_path=args.config,
+        )
         if args.output is not None:
             args.output.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
         print(f"Dynamic workflow executed with model {payload['model']['name']}")
@@ -138,6 +148,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.command == "shell":
         run_shell(args.prompt)
         return 0
+
+    if args.command == "screen":
+        return run_harness_ui(prompt_name=args.session)
 
     parser.error("unsupported command")
     return 2

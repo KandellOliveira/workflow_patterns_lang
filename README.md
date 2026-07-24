@@ -7,6 +7,37 @@ Projeto para demonstrar seis padrões de workflow inspirados em LangGraph com um
 ```bash
 python3 -m workflow_patterns_lang.cli run --pattern all --output results.json --threshold 0.8
 python3 -m workflow_patterns_lang.cli report --output analysis.md --threshold 0.8 --tradeoff latency
+python3 -m workflow_patterns_lang.cli dynamic --prompt "Explique o erro" --model "openrouter/openai/gpt-5.5" --config .env.models --output dynamic.json
+python3 -m workflow_patterns_lang.cli screen --session hawk-dynamic
+```
+
+## Tela estilo harness
+
+Execute a tela principal:
+
+```bash
+python3 -m workflow_patterns_lang.cli screen --session hawk-dynamic
+```
+
+Comandos dentro da tela:
+
+- /pesquisar <missao>
+- /auditar <missao>
+- :ajuda
+- :fontes
+- :modelos
+- :sair
+
+## Configuracao de modelos por etapa
+
+Use o arquivo `.env.models` para definir qual modelo sera usado em cada etapa do workflow dinamico:
+
+```env
+PLANNER_MODEL=openrouter/openai/gpt-5.5
+SUBAGENT_MODEL=openrouter/openai/gpt-5.4-mini
+SUBAGENT_VERIFIER_MODEL=openrouter/openai/gpt-oss-120b:nitro
+GLOBAL_EVALUATOR_MODEL=openrouter/moonshotai/kimi-k2.6:nitro
+SYNTHESIZER_MODEL=openrouter/qwen/qwen3.7-max
 ```
 
 ## Padrões implementados

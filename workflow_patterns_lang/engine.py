@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 
@@ -11,6 +12,22 @@ WORKFLOW_PATTERNS = [
     {"name": "parallel", "description": "Executa branches em paralelo", "confidence": 0.80, "latency": 0.8, "cost": 0.7},
     {"name": "branching", "description": "Escolhe entre caminhos alternativos", "confidence": 0.74, "latency": 0.75, "cost": 0.55},
 ]
+
+DEFAULT_MODEL_CONFIG = {
+    "planner_model": "openrouter/openai/gpt-5.5",
+    "subagent_model": "openrouter/openai/gpt-5.4-mini",
+    "subagent_verifier_model": "openrouter/openai/gpt-oss-120b:nitro",
+    "global_evaluator_model": "openrouter/moonshotai/kimi-k2.6:nitro",
+    "synthesizer_model": "openrouter/qwen/qwen3.7-max",
+}
+
+ENV_KEY_TO_STAGE = {
+    "PLANNER_MODEL": "planner_model",
+    "SUBAGENT_MODEL": "subagent_model",
+    "SUBAGENT_VERIFIER_MODEL": "subagent_verifier_model",
+    "GLOBAL_EVALUATOR_MODEL": "global_evaluator_model",
+    "SYNTHESIZER_MODEL": "synthesizer_model",
+}
 
 
 def run_workflow_suite(pattern: str = "all", threshold: float = 0.8) -> dict[str, Any]:
@@ -81,24 +98,57 @@ def generate_analysis_report(threshold: float = 0.8, tradeoff: str = "all") -> s
     return "\n".join(analysis) + "\n"
 
 
-def run_dynamic_workflow(prompt: str, model: str, api_key: str | None = None) -> dict[str, Any]:
+def _parse_env_file(file_path: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    path = Path(file_path)
+    if not path.exists():
+        return parsed
+
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        parsed[key.strip()] = value.strip().strip("\"'")
+    return parsed
+
+
+def load_stage_models(config_path: str | None = None) -> dict[str, str]:
+    models = DEFAULT_MODEL_CONFIG.copy()
+    if config_path:
+        parsed = _parse_env_file(config_path)
+        for env_key, stage_key in ENV_KEY_TO_STAGE.items():
+            if parsed.get(env_key):
+                models[stage_key] = parsed[env_key]
+    return models
+
+
+def run_dynamic_workflow(
+    prompt: str,
+    model: str,
+    api_key: str | None = None,
+    config_path: str | None = None,
+) -> dict[str, Any]:
+    stage_models = load_stage_models(config_path=config_path)
     provider = "openrouter" if model.startswith("openrouter/") else "custom"
     graph = {
         "nodes": {
-            "planner": {"type": "llm", "role": "plan"},
-            "critic": {"type": "llm", "role": "review"},
-            "verify": {"type": "tool", "role": "fact-check"},
-            "synthesizer": {"type": "llm", "role": "final-answer"},
+            "planner": {"type": "llm", "role": "plan", "model": stage_models["planner_model"]},
+            "subagent": {"type": "llm", "role": "execute", "model": stage_models["subagent_model"]},
+            "verify": {"type": "llm", "role": "fact-check", "model": stage_models["subagent_verifier_model"]},
+            "evaluate": {"type": "llm", "role": "global-eval", "model": stage_models["global_evaluator_model"]},
+            "synthesizer": {"type": "llm", "role": "final-answer", "model": stage_models["synthesizer_model"]},
         },
         "edges": [
-            ("planner", "critic"),
-            ("critic", "verify"),
-            ("verify", "synthesizer"),
+            ("planner", "subagent"),
+            ("subagent", "verify"),
+            ("verify", "evaluate"),
+            ("evaluate", "synthesizer"),
         ],
     }
 
     config = {
-        "langchain": {"provider": provider, "model": model},
+        "langchain": {"provider": provider, "router_model": model, "stage_models": stage_models},
         "openrouter": {"api_key": api_key or "not-provided", "model": model},
         "langgraph": {"graph": graph, "entrypoint": "planner"},
     }
@@ -107,6 +157,7 @@ def run_dynamic_workflow(prompt: str, model: str, api_key: str | None = None) ->
         "workflow": "dynamic",
         "prompt": prompt,
         "model": {"name": model, "provider": provider},
+        "stage_models": stage_models,
         "graph": graph,
         "config": config,
         "status": "completed",

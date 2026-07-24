@@ -43,6 +43,12 @@ def test_shell_lists_commands_and_models(monkeypatch):
     assert "synth" in text
 
 
+def test_screen_starts_and_exits(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda _: ":sair")
+    exit_code = main(["screen", "--session", "test-ui"])
+    assert exit_code == 0
+
+
 def test_dynamic_workflow_builds_langgraph_like_graph():
     result = run_dynamic_workflow(
         prompt="Explique a causa de um erro de execução.",
@@ -51,5 +57,29 @@ def test_dynamic_workflow_builds_langgraph_like_graph():
     )
     assert result["workflow"] == "dynamic"
     assert result["model"]["provider"] == "openrouter"
-    assert set(result["graph"]["nodes"].keys()) >= {"planner", "critic", "synthesizer", "verify"}
+    assert set(result["graph"]["nodes"].keys()) >= {"planner", "subagent", "synthesizer", "verify", "evaluate"}
+    assert result["stage_models"]["planner_model"]
+    assert result["stage_models"]["subagent_model"]
     assert result["status"] == "completed"
+
+
+def test_dynamic_workflow_loads_models_from_config_file(tmp_path):
+    config = tmp_path / "models.env"
+    config.write_text(
+        "\n".join(
+            [
+                "PLANNER_MODEL=openrouter/test/planner",
+                "SUBAGENT_MODEL=openrouter/test/subagent",
+                "SUBAGENT_VERIFIER_MODEL=openrouter/test/verifier",
+                "GLOBAL_EVALUATOR_MODEL=openrouter/test/eval",
+                "SYNTHESIZER_MODEL=openrouter/test/synth",
+            ]
+        )
+    )
+    result = run_dynamic_workflow(
+        prompt="Teste",
+        model="openrouter/test/router",
+        config_path=str(config),
+    )
+    assert result["stage_models"]["planner_model"] == "openrouter/test/planner"
+    assert result["stage_models"]["global_evaluator_model"] == "openrouter/test/eval"
