@@ -79,3 +79,35 @@ def generate_analysis_report(threshold: float = 0.8, tradeoff: str = "all") -> s
     for item in prioritized[:3]:
         analysis.append(f"- {item['name']}: confidence {item['metrics']['confidence']:.2f}, latency {item['metrics']['latency']:.2f}")
     return "\n".join(analysis) + "\n"
+
+
+def run_dynamic_workflow(prompt: str, model: str, api_key: str | None = None) -> dict[str, Any]:
+    provider = "openrouter" if model.startswith("openrouter/") else "custom"
+    graph = {
+        "nodes": {
+            "planner": {"type": "llm", "role": "plan"},
+            "critic": {"type": "llm", "role": "review"},
+            "verify": {"type": "tool", "role": "fact-check"},
+            "synthesizer": {"type": "llm", "role": "final-answer"},
+        },
+        "edges": [
+            ("planner", "critic"),
+            ("critic", "verify"),
+            ("verify", "synthesizer"),
+        ],
+    }
+
+    config = {
+        "langchain": {"provider": provider, "model": model},
+        "openrouter": {"api_key": api_key or "not-provided", "model": model},
+        "langgraph": {"graph": graph, "entrypoint": "planner"},
+    }
+
+    return {
+        "workflow": "dynamic",
+        "prompt": prompt,
+        "model": {"name": model, "provider": provider},
+        "graph": graph,
+        "config": config,
+        "status": "completed",
+    }

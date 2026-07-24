@@ -1,0 +1,79 @@
+{
+  "pattern": "all",
+  "count": 6,
+  "threshold": 0.8,
+  "patterns": [
+    {
+      "name": "sequential",
+      "description": "Workflow em sequência simples",
+      "status": "completed",
+      "threshold_status": "meets-threshold",
+      "metrics": {
+        "confidence": 0.86,
+        "latency": 0.7,
+        "cost": 0.4,
+        "risk": 0.14
+      }
+    },
+    {
+      "name": "fanout",
+      "description": "Distribui tarefas para múltiplos nós",
+      "status": "completed",
+      "threshold_status": "below-threshold",
+      "metrics": {
+        "confidence": 0.78,
+        "latency": 0.9,
+        "cost": 0.6,
+        "risk": 0.22
+      }
+    },
+    {
+      "name": "routing",
+      "description": "Encaminha com base em regras",
+      "status": "completed",
+      "threshold_status": "meets-threshold",
+      "metrics": {
+        "confidence": 0.82,
+        "latency": 0.6,
+        "cost": 0.5,
+        "risk": 0.18
+      }
+    },
+    {
+      "name": "human",
+      "description": "Inclui um checkpoint humano",
+      "status": "completed",
+      "threshold_status": "meets-threshold",
+      "metrics": {
+        "confidence": 0.91,
+        "latency": 1.0,
+        "cost": 0.8,
+        "risk": 0.09
+      }
+    },
+    {
+      "name": "parallel",
+      "description": "Executa branches em paralelo",
+      "status": "completed",
+      "threshold_status": "meets-threshold",
+      "metrics": {
+        "confidence": 0.8,
+        "latency": 0.8,
+        "cost": 0.7,
+        "risk": 0.2
+      }
+    },
+    {
+      "name": "branching",
+      "description": "Escolhe entre caminhos alternativos",
+      "status": "completed",
+      "threshold_status": "below-threshold",
+      "metrics": {
+        "confidence": 0.74,
+        "latency": 0.75,
+        "cost": 0.55,
+        "risk": 0.26
+      }
+    }
+  ]
+}
